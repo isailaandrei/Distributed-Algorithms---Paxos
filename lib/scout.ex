@@ -20,6 +20,7 @@ defmodule Scout do
             Process.exit(0, :kill)
           end
         else
+          {pvalues, waitfor}
           send leader_id, {:preempted, b_app}
         end
         next leader_id, acceptors, b, waitfor, pvalues

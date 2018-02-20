@@ -13,14 +13,16 @@
       {:p2b, acceptor, b_app} ->
         waitfor =
         if b_app = b do
-          MapSet.delete(waitfor, acceptor)
+          waitfor = MapSet.delete(waitfor, acceptor)
           if (length(waitfor) < length(acceptors) / 2) do
             for replica <- replicas, do:
               send replica, {:decision, s, c}
             Process.exit(0, :kill)
           end
+          waitfor
         else
           send leader_id, {:preempted, b_app}
+          waitfor
         end
         next leader_id, acceptors, waitfor, replicas, {b, s, c}
     end

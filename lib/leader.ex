@@ -20,21 +20,27 @@ defmodule Leader do
             spawn(Commander, :start, [self(), acceptors, replicas, {ballot_num, s, c}])
           end
         end
+        next acceptors, replicas, ballot_num, active, proposals
+
 
       {:adopted, ballot_num, pvals} ->
         proposals = rightjoin proposals, pvals
         for {s, c} <- proposals, do:
          spawn Commander, :start, [self(), acceptors, replicas, {ballot_num, s, c}]
         active = true
+        next acceptors, replicas, ballot_num, active, proposals
+
 
         {:preempted, b={r_app, leader_id_app}} ->
-          if b > ballot_num do
-            active = false
-            ballot_num = {r_app + 1, self()}
-            spawn Scout, :start, [self(), acceptors, ballot_num]
-          end
+          {ballot_num, active} =
+            if b > ballot_num do
+              spawn Scout, :start, [self(), acceptors, {r_app + 1, self()}]
+              {{r_app + 1, self()}, false}
+            else
+              {ballot_num, active}
+            end
+          next acceptors, replicas, ballot_num, active, proposals
     end
-    next acceptors, replicas, ballot_num, active, proposals
   end
 
 
