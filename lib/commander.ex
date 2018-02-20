@@ -11,6 +11,7 @@
   defp next leader_id, acceptors, waitfor, replicas, {b, s, c} do
     receive do
       {:p2b, acceptor, b_app} ->
+        waitfor =
         if b_app = b do
           MapSet.delete(waitfor, acceptor)
           if (length(waitfor) < length(acceptors) / 2) do
@@ -21,7 +22,7 @@
         else
           send leader_id, {:preempted, b_app}
         end
+        next leader_id, acceptors, waitfor, replicas, {b, s, c}
     end
-    next leader_id, acceptors, waitfor, replicas, {b, s, c}
   end
 end

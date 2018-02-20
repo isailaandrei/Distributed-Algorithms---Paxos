@@ -5,23 +5,24 @@ defmodule Scout do
     for acceptor <- acceptors, do:
       send acceptor, {:p1a, self(), b}
 
-    next leader_id, acceptors, b, acceptors, MapSet.new
+    next leader_id, acceptors, b, acceptors, []
   end
 
   defp next leader_id, acceptors, b, waitfor, pvalues do
     receive do
       {:p1b, acceptor, b_app, response} ->
+        {pvalues, waitfor} =
         if b_app = b do
-          MapSet.put(pvalues, response)
-          MapSet.delete(waitfor, acceptor)
+          {List.insert_at(pvalues, response, 0),
+          List.delete(waitfor, acceptor)}
           if (length(waitfor) < length(acceptors) / 2) do
-            send acceptor, {:adopted, b, pvalues}
+            send leader_id, {:adopted, b, pvalues}
             Process.exit(0, :kill)
           end
         else
           send leader_id, {:preempted, b_app}
         end
+        next leader_id, acceptors, b, waitfor, pvalues
     end
-    next leader_id, acceptors, b, waitfor, pvalues
   end
 end
