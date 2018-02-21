@@ -1,6 +1,6 @@
 defmodule Replica do
 
-  def start database, monitor, config do
+  def start  config, database, monitor do
     receive do
       {:bind, leaders} ->
         next config, database, monitor, leaders, 1, 1, MapSet.new, Map.new, Map.new, Map.new
@@ -13,6 +13,7 @@ defmodule Replica do
     receive do
       {:client_request, c} ->
         requests = MapSet.put(requests, c)
+        send monitor, {:client_request, config.server_num}
         {leaders, requests, proposals, slot_in} = propose(slot_in, slot_out, config, decisions, leaders, requests, proposals)
         next config, database, monitor, leaders, slot_in, slot_out, requests, proposals, decisions, performed
 
@@ -29,7 +30,8 @@ defmodule Replica do
   end
 
   def perform_all database, requests, proposals, decisions, slot_out, performed do
-    if decisions[slot_out] do
+    {database, requests, proposals, decisions, slot_out, performed}=
+    if Map.get(decisions, slot_out) do
       requests =
         if decisions[slot_out] != proposals[slot_out] do
           MapSet.put(requests, proposals[slot_out])
@@ -37,13 +39,19 @@ defmodule Replica do
           requests
         end
         proposals = Map.delete(proposals, proposals[slot_out])
+
         {slot_out, performed} = perform(database, decisions, slot_out, performed)
         perform_all database, requests, proposals, decisions, slot_out, performed
+    else
+      {database, requests, proposals, decisions, slot_out, performed}
     end
+        {database, requests, proposals, decisions, slot_out, performed}
+
   end
 
-    def perform database, slot_out, decisions, performed do
-      c = {k, cid, op} = decisions[slot_out]
+    def perform database, decisions, slot_out, performed do
+      {k, cid, op} = Map.get(decisions, slot_out)
+      c = {k, cid, op}
       op_performed = performed[c]
 
       {slot_out, performed} =
@@ -54,12 +62,12 @@ defmodule Replica do
       else
         {slot_out+1, performed}
       end
-
+      {slot_out, performed}
     end
 
 
   def propose slot_in, slot_out, config, decisions, leaders, requests, proposals do
-      if slot_in < slot_out + config[:window] && MapSet.size(requests) > 0 do
+      if slot_in < slot_out + config.window && MapSet.size(requests) > 0 do
         c = Enum.at(requests, 0)
         {requests, proposals} =
           if !decisions[slot_in] do

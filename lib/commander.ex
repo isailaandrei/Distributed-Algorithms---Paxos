@@ -14,10 +14,9 @@
         waitfor =
         if b_app = b do
           waitfor = MapSet.delete(waitfor, acceptor)
-          if (length(waitfor) < length(acceptors) / 2) do
+          if (MapSet.size(waitfor) < MapSet.size(acceptors) / 2) do
             for replica <- replicas, do:
               send replica, {:decision, s, c}
-            Process.exit(0, :kill)
           end
           waitfor
         else
