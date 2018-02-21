@@ -11,19 +11,17 @@ defmodule Scout do
   defp next leader_id, acceptors, b, waitfor, pvalues do
     receive do
       {:p1b, acceptor, b_app, r} ->
-        {pvalues, waitfor} =
-        if b_app = b do
-          p = MapSet.union(pvalues, r)
-          w = MapSet.delete(waitfor, acceptor)
+        if b_app == b do
+          pvalues = MapSet.union(pvalues, r)
+          waitfor = MapSet.delete(waitfor, acceptor)
           if (MapSet.size(waitfor) < MapSet.size(acceptors) / 2) do
             send leader_id, {:adopted, b, pvalues}
+          else
+            next leader_id, acceptors, b, waitfor, pvalues
           end
-          {p, w}
         else
           send leader_id, {:preempted, b_app}
-          {pvalues, waitfor}
         end
-        next leader_id, acceptors, b, waitfor, pvalues
     end
   end
 end
