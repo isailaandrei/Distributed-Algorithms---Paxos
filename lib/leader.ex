@@ -2,9 +2,8 @@ defmodule Leader do
 
   def start config do
     receive do
-
       {:bind, acceptors, replicas} ->
-        scout = spawn Scout, :start, [self(), acceptors, {0, self()}]
+        spawn Scout, :start, [self(), acceptors, {0, self()}]
         next acceptors, replicas, {0, self()}, false, Map.new
     end
   end
@@ -14,12 +13,15 @@ defmodule Leader do
     receive do
 
       {:propose, s, c} ->
-        if (proposals[s] == nil || proposals[s] == c) do
+        proposals =
+          if (proposals[s] == nil || proposals[s] == c) do
+            if active do
+              spawn(Commander, :start, [self(), acceptors, replicas, {ballot_num, s, c}])
+            end
             Map.put(proposals, s, c)
-          if active do
-            spawn(Commander, :start, [self(), acceptors, replicas, {ballot_num, s, c}])
+          else
+            proposals
           end
-        end
         next acceptors, replicas, ballot_num, active, proposals
 
 
@@ -31,7 +33,7 @@ defmodule Leader do
         next acceptors, replicas, ballot_num, active, proposals
 
 
-        {:preempted, b={r_app, leader_id_app}} ->
+        {:preempted, b={r_app, _}} ->
           {ballot_num, active} =
             if b > ballot_num do
               spawn Scout, :start, [self(), acceptors, {r_app + 1, self()}]
@@ -46,15 +48,15 @@ defmodule Leader do
 
 
   def pmax pvals do
-    pvals = Enum.sort_by(pvals, fn {b, s, c} -> b end)
-    res = Map.new(for {b, s, c} <- pvals, do: {s, c})
+    pvals = Enum.sort_by(pvals, fn {b, _, _} -> b end)
+    res = Map.new(for {_, s, c} <- pvals, do: {s, c})
     res
   end
 
   def rightjoin proposals, pvals do
     pvals = pmax pvals
     res = Map.new(Map.to_list(pvals) ++
-  Enum.filter(proposals, fn {s, c} -> !Map.has_key?(pvals, s) end))
+  Enum.filter(proposals, fn {s, _} -> !Map.has_key?(pvals, s) end))
     res
   end
 

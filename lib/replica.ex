@@ -11,7 +11,7 @@ defmodule Replica do
   def next config, database, monitor, leaders, slot_in, slot_out, requests, proposals, decisions, performed do
 
     receive do
-      {:request, c} ->
+      {:client_request, c} ->
         requests = MapSet.put(requests, c)
         {leaders, requests, proposals, slot_in} = propose(slot_in, slot_out, config, decisions, leaders, requests, proposals)
         next config, database, monitor, leaders, slot_in, slot_out, requests, proposals, decisions, performed
