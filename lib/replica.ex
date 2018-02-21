@@ -39,30 +39,26 @@ defmodule Replica do
           requests
         end
         proposals = Map.delete(proposals, proposals[slot_out])
-
         {slot_out, performed} = perform(database, decisions, slot_out, performed)
         perform_all database, requests, proposals, decisions, slot_out, performed
     else
       {database, requests, proposals, decisions, slot_out, performed}
     end
-        {database, requests, proposals, decisions, slot_out, performed}
+      {database, requests, proposals, decisions, slot_out, performed}
 
   end
 
     def perform database, decisions, slot_out, performed do
-      {k, cid, op} = Map.get(decisions, slot_out)
-      c = {k, cid, op}
-      op_performed = performed[c]
+      c = {k, cid, op} = Map.get(decisions, slot_out)
+      op_performed = performed[slot_out]
 
-      {slot_out, performed} =
       if !op_performed do
         send database, {:execute, op}
         send k, {:reply, cid, :ok}
         {slot_out + 1, Map.put(performed, c, true)}
       else
-        {slot_out+1, performed}
+        {slot_out + 1, performed}
       end
-      {slot_out, performed}
     end
 
 
@@ -71,14 +67,15 @@ defmodule Replica do
         c = Enum.at(requests, 0)
         {requests, proposals} =
           if !decisions[slot_in] do
-            {MapSet.delete(requests, c),
-              Map.put(decisions, slot_in, c)}
+            requests  =  MapSet.delete(requests, c)
+            proposals =  Map.put(decisions, slot_in, c)
+            for leader_id <- leaders, do:
+              send leader_id, {:propose, slot_in, c}
+            {requests, proposals}
           else
             {requests, proposals}
           end
-          for leader_id <- leaders, do:
-            send leader_id, {:propose, slot_in, c}
-          slot_in = slot_in + 1;
+          slot_in = slot_in + 1
           propose(slot_in, slot_out, config, decisions, leaders, requests, proposals)
         else
           {leaders, requests, proposals, slot_in}

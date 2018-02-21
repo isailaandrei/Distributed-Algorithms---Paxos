@@ -5,7 +5,7 @@ defmodule Leader do
       {:bind, acceptors, replicas} ->
         ballot_num  = {0, self()}
         spawn_send_scout acceptors, ballot_num, config, monitor
-        next acceptors, replicas, {0, self()}, false, Map.new, config, monitor
+        next acceptors, replicas, ballot_num, false, Map.new, config, monitor
     end
   end
 
@@ -27,6 +27,7 @@ defmodule Leader do
 
 
       {:adopted, ballot_num, pvals} ->
+
         proposals = rightjoin proposals, pvals
         for {s, c} <- proposals, do:
          spawn_send_commander acceptors, replicas, {ballot_num, s, c}, config, monitor

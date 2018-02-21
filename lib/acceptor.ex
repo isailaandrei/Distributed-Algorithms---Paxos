@@ -2,7 +2,7 @@ defmodule Acceptor do
 
 
   def start config do
-    next(config, 0, MapSet.new)
+    next config, 0, MapSet.new
   end
 
 
@@ -21,7 +21,7 @@ defmodule Acceptor do
 
         {:p2a, leader_id, {b, s, c}} ->
           accepted =
-          if b > ballot_num do
+          if b == ballot_num do
             MapSet.put(accepted, {b, s, c})
           else
             accepted
